@@ -451,45 +451,238 @@ function templateCustom(name: string, address: string, description: string): str
   return `// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
+// ══════════════════════════════════════════════════════════════════════════════
+// DROSERA TRAP — CUSTOM SCAFFOLD
+// Goal: ${description}
+//
+// HOW TO USE THIS FILE:
+//   This scaffold gives you the exact structure every Drosera Trap must follow.
+//   Read the ITrap interface rules below, then replace the TODO sections with
+//   your own logic. All 8 reference patterns at the bottom show real examples
+//   you can copy and adapt.
+//
+// ITrap RULES (enforced by the Drosera network):
+//   collect()       → MUST be \`external view\`  — only read chain state, no writes
+//   shouldRespond() → MUST be \`external pure\`  — only use the data[] argument
+//   data[0]         → most recent block's collect() output
+//   data[N-1]       → oldest block's collect() output
+//   Return (true,  responseBytes) → triggers your response_function on-chain
+//   Return (false, bytes(""))    → do nothing this block
+//   Gas limit: 1 billion gas per collect(), 1 billion per shouldRespond()
+// ══════════════════════════════════════════════════════════════════════════════
+
 import "drosera-contracts/interfaces/ITrap.sol";
+
+// ── Step 1: Define an interface for the contract you want to read ─────────────
+// Replace this with the actual functions you need to call on TARGET.
+interface ITarget {
+    // TODO: add the function signatures you want to call, e.g.:
+    // function getPrice() external view returns (uint256);
+    // function getLiquidity() external view returns (uint256);
+    // function owner() external view returns (address);
+    // function balanceOf(address) external view returns (uint256);
+}
+
+// ── Step 2: Define what data to snapshot each block ──────────────────────────
+// Add every field you need to compare across blocks.
+struct Snapshot {
+    // TODO: replace these with the actual values you want to track, e.g.:
+    uint256 value1;   // e.g. price, liquidity, balance, totalSupply
+    uint256 value2;   // optional second value for comparisons
+    address addr;     // optional address field (owner, manager, etc.)
+    bool    flag;     // optional boolean (paused, active, etc.)
+}
 
 /// @title ${name}
 /// @notice ${description}
-/// @dev TODO: implement collect() and shouldRespond() for your specific use case.
+/// @dev Implements the Drosera ITrap interface.
+///      See reference patterns at the bottom of this file for examples.
 contract ${name} is ITrap {
 
-    /// @notice The contract to monitor. Update before deploying.
+    // ── Configuration constants (set before deploying) ────────────────────
     address public constant TARGET = ${address};
 
-    // TODO: define your Snapshot struct with the fields you want to capture
-    struct Snapshot {
-        uint256 value;   // replace with actual fields
-        address addr;    // replace or remove
-    }
+    // TODO: add your threshold/comparison constants, e.g.:
+    // uint256 public constant THRESHOLD      = 1000e18;
+    // uint256 public constant DROP_BPS       = 2000;   // 20%
+    // address public constant EXPECTED_OWNER = 0x...;
 
+    // ── collect(): snapshot chain state every block ───────────────────────
     /// @inheritdoc ITrap
-    /// @dev TODO: read the on-chain state you care about and encode it.
+    /// @dev Called by operators every block. Must be view — no state changes.
     function collect() external view returns (bytes memory) {
-        // Example — replace with actual calls:
-        // return abi.encode(Snapshot({ value: ITarget(TARGET).getValue(), addr: TARGET }));
-        return abi.encode(Snapshot({ value: 0, addr: TARGET }));
+        // TODO: replace with real calls, e.g.:
+        // uint256 price     = ITarget(TARGET).getPrice();
+        // uint256 liquidity = ITarget(TARGET).getLiquidity();
+        // return abi.encode(Snapshot({ value1: price, value2: liquidity, addr: TARGET, flag: false }));
+
+        return abi.encode(Snapshot({
+            value1: 0,   // TODO: replace
+            value2: 0,   // TODO: replace or remove
+            addr:   TARGET,
+            flag:   false
+        }));
     }
 
+    // ── shouldRespond(): decide whether to trigger the response ───────────
     /// @inheritdoc ITrap
-    /// @dev TODO: decode data[0] and implement your trigger condition.
+    /// @dev Called with last N collect() results. Must be pure — use data[] only.
+    ///      data[0] = newest block, data[block_sample_size - 1] = oldest block.
     function shouldRespond(bytes[] calldata data) external pure returns (bool, bytes memory) {
         if (data.length == 0) return (false, bytes(""));
 
+        // Decode the most recent snapshot
         Snapshot memory latest = abi.decode(data[0], (Snapshot));
 
-        // TODO: replace this condition with your actual trigger logic
-        if (latest.value == 0) {
-            return (true, abi.encode("Condition met", latest.value));
+        // TODO: for multi-block comparisons (trends, drops), also decode data[1]:
+        // Snapshot memory prev = abi.decode(data[1], (Snapshot));
+
+        // TODO: replace with your trigger condition, e.g.:
+        // Single value threshold:
+        //   if (latest.value1 < THRESHOLD) return (true, abi.encode(latest.value1));
+        //
+        // Percentage drop across two blocks:
+        //   if (prev.value1 > 0) {
+        //       uint256 dropBps = ((prev.value1 - latest.value1) * 10_000) / prev.value1;
+        //       if (dropBps > DROP_BPS) return (true, abi.encode(dropBps));
+        //   }
+        //
+        // Address change:
+        //   if (latest.addr != EXPECTED_OWNER) return (true, abi.encode(latest.addr));
+        //
+        // Boolean flag:
+        //   if (latest.flag) return (true, abi.encode("Flag triggered"));
+
+        // ── PLACEHOLDER — replace with real condition ──
+        if (latest.value1 == 0) {
+            return (true, abi.encode("Condition met — replace this logic"));
         }
 
         return (false, bytes(""));
     }
-}`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// REFERENCE PATTERNS — copy and adapt any of these into your contract above
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── PATTERN 1: Single value threshold ────────────────────────────────────────
+// Use when: you want to trigger if a value drops below a fixed threshold
+//
+// struct Snapshot { uint256 value; }
+//
+// collect():
+//   return abi.encode(Snapshot({ value: ITarget(TARGET).getValue() }));
+//
+// shouldRespond():
+//   Snapshot memory s = abi.decode(data[0], (Snapshot));
+//   if (s.value < THRESHOLD) return (true, abi.encode(s.value));
+
+// ── PATTERN 2: Percentage drop across two blocks ──────────────────────────────
+// Use when: you want to detect sudden crashes (price, liquidity, TVL, etc.)
+// Requires: block_sample_size >= 2 in drosera.toml
+//
+// shouldRespond():
+//   if (data.length < 2) return (false, bytes(""));
+//   Snapshot memory latest = abi.decode(data[0], (Snapshot));
+//   Snapshot memory prev   = abi.decode(data[1], (Snapshot));
+//   if (prev.value == 0) return (false, bytes(""));
+//   uint256 dropBps = ((prev.value - latest.value) * 10_000) / prev.value;
+//   if (dropBps > DROP_THRESHOLD_BPS) return (true, abi.encode(dropBps));
+
+// ── PATTERN 3: Address / ownership change ────────────────────────────────────
+// Use when: you want to detect if an owner, admin, or key address changes
+//
+// struct Snapshot { address owner; }
+//
+// collect():
+//   return abi.encode(Snapshot({ owner: IOwnable(TARGET).owner() }));
+//
+// shouldRespond():
+//   Snapshot memory s = abi.decode(data[0], (Snapshot));
+//   if (s.owner != EXPECTED_OWNER) return (true, abi.encode(s.owner));
+
+// ── PATTERN 4: Boolean state change ──────────────────────────────────────────
+// Use when: you monitor a flag like paused(), active(), frozen()
+//
+// struct Snapshot { bool paused; }
+//
+// collect():
+//   return abi.encode(Snapshot({ paused: IPausable(TARGET).paused() }));
+//
+// shouldRespond():
+//   Snapshot memory s = abi.decode(data[0], (Snapshot));
+//   if (s.paused) return (true, abi.encode("Protocol paused"));
+
+// ── PATTERN 5: Multi-field snapshot ──────────────────────────────────────────
+// Use when: you need to monitor multiple values together (e.g. price + liquidity)
+//
+// struct Snapshot { uint256 price; uint256 liquidity; address owner; }
+//
+// collect():
+//   return abi.encode(Snapshot({
+//       price:     IOracle(ORACLE).getPrice(TOKEN),
+//       liquidity: IPool(TARGET).getLiquidity(),
+//       owner:     IOwnable(TARGET).owner()
+//   }));
+//
+// shouldRespond():
+//   Snapshot memory s = abi.decode(data[0], (Snapshot));
+//   if (s.price < MIN_PRICE || s.liquidity < MIN_LIQUIDITY) return (true, abi.encode(s));
+
+// ── PATTERN 6: ERC20 balance monitor ─────────────────────────────────────────
+// Use when: you want to monitor a token balance of any address
+//
+// interface IERC20 { function balanceOf(address) external view returns (uint256); }
+// struct Snapshot { uint256 balance; }
+//
+// collect():
+//   return abi.encode(Snapshot({ balance: IERC20(TOKEN).balanceOf(WATCHED) }));
+//
+// shouldRespond():
+//   Snapshot memory s = abi.decode(data[0], (Snapshot));
+//   if (s.balance < MIN_BALANCE) return (true, abi.encode(s.balance));
+
+// ── PATTERN 7: ERC20 total supply change ─────────────────────────────────────
+// Use when: you want to detect unexpected mints or burns
+// Requires: block_sample_size >= 2
+//
+// interface IERC20 { function totalSupply() external view returns (uint256); }
+// struct Snapshot { uint256 totalSupply; }
+//
+// shouldRespond():
+//   Snapshot memory latest = abi.decode(data[0], (Snapshot));
+//   Snapshot memory prev   = abi.decode(data[1], (Snapshot));
+//   uint256 diff = latest.totalSupply > prev.totalSupply
+//       ? latest.totalSupply - prev.totalSupply
+//       : prev.totalSupply - latest.totalSupply;
+//   uint256 changeBps = (diff * 10_000) / prev.totalSupply;
+//   if (changeBps > CHANGE_THRESHOLD_BPS) return (true, abi.encode(changeBps));
+
+// ── PATTERN 8: Event log monitoring ──────────────────────────────────────────
+// Use when: you want to react to emitted events (Transfer, Swap, etc.)
+// Requires: inherit from Trap.sol instead of ITrap interface
+//
+// import "drosera-contracts/Trap.sol";
+// contract MyTrap is Trap { ... }
+//
+// eventLogFilters():
+//   EventFilter[] memory filters = new EventFilter[](1);
+//   filters[0] = EventFilter({
+//       contractAddress: TARGET,
+//       signature: "Transfer(address,address,uint256)"
+//   });
+//   return filters;
+//
+// collect():
+//   EventLog[] memory logs = getEventLogs();
+//   uint256 total = 0;
+//   for (uint256 i = 0; i < logs.length; i++) {
+//       (,, uint256 amount) = abi.decode(logs[i].data, (address, address, uint256));
+//       total += amount;
+//   }
+//   return abi.encode(total);
+`;
 }
 
 // ── Main export ────────────────────────────────────────────────────────────
@@ -562,8 +755,11 @@ export function generateTrap(input: TrapInput): GeneratedTrap {
 
     default:
       solidityCode = templateCustom(contractName, addr, description);
-      explanation = `Generic trap template for: "${description}". The collect() and shouldRespond() functions have clear TODO comments — fill them in based on what you want to monitor.`;
-      warnings.push("This is a generic template. Implement collect() and shouldRespond() for your use case.");
+      explanation = `Custom trap scaffold for: "${description}". The file contains the full ITrap structure with all rules documented inline, plus all 8 reference patterns as commented examples. Your AI assistant (Cursor, Copilot, Claude) can read these patterns and implement the TODO sections — just ask it to fill in the logic based on your goal and the reference patterns at the bottom.`;
+      warnings.push("Ask your AI: 'Implement the TODO sections based on the @notice goal and the reference patterns at the bottom of this file'.");
+      warnings.push("Set TARGET to the contract address you want to monitor.");
+      warnings.push("Set response_contract and response_function in drosera.toml.");
+      warnings.push("Run `forge build` to compile, then `drosera dryrun` to validate.");
       break;
   }
 
