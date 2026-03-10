@@ -8,22 +8,50 @@ Built by a Drosera community contributor to help developers build, deploy, and m
 
 ## What is this?
 
-If you use **Cursor**, **Claude Desktop**, **VS Code**, or any MCP-compatible AI agent, this server gives your AI assistant:
+If you use **Cursor**, **Claude Desktop**, **VS Code Copilot**, or any MCP-compatible AI agent, this server gives your AI assistant:
 
 - 📚 **Full Drosera documentation** embedded locally — no web search, no hallucinations
 - 🔨 **Instant Trap code generation** from plain English descriptions
+- 🧠 **AI-improvable scaffolds** — your AI agent reads the output and generates custom logic from 8 built-in reference patterns
 - 🗺️ **Step-by-step setup guides** for any OS
 - 📖 **ITrap interface reference** always at hand
 
 Instead of switching between the Drosera docs and your editor, just ask your AI:
 
-> *"Write me a Drosera trap that monitors if an ERC20 total supply changes by more than 10%"*
+> *"Write me a Drosera trap that monitors a Chainlink oracle for price deviation"*
 
 > *"Walk me through setting up a Drosera project on Mac with npm"*
 
 > *"How do I hydrate a trap?"*
 
-And get accurate, instant answers — powered by the real Drosera docs baked right in.
+And get accurate, instant answers — powered by real Drosera docs baked right in.
+
+---
+
+## How Trap Generation Works
+
+### Known patterns → instant working contract
+If your description matches one of 8 known patterns, you get a **complete, compilable Solidity contract** immediately — no further AI needed.
+
+### Custom ideas → rich scaffold + AI improvisation
+If your idea is unique (e.g. *"monitor a Uniswap V3 pool's tick range"*), the tool returns a **rich scaffold** containing:
+- The full ITrap structure with all rules documented inline
+- All 8 reference patterns as commented code examples at the bottom
+- Your goal embedded in the `@notice` comment
+
+Your AI agent (Cursor, Copilot, Claude) reads this output and **implements the custom logic itself** using the reference patterns. No API key needed on the server.
+
+**Example workflow in Cursor:**
+```
+1. Use drosera_write_trap — monitor Chainlink ETH/USD for 5% price deviation
+
+2. [MCP returns scaffold + 8 reference patterns]
+
+3. Tell Cursor: "Implement the TODO sections using Pattern 2 
+   from the reference examples at the bottom"
+
+4. Cursor generates the full working contract
+```
 
 ---
 
@@ -31,14 +59,14 @@ And get accurate, instant answers — powered by the real Drosera docs baked rig
 
 | Tool | Description |
 |---|---|
-| `drosera_write_trap` | Generates a complete Solidity Trap contract + `drosera.toml` from a plain-English description. Template-based — no API key needed. |
-| `drosera_setup_guide` | Returns a full step-by-step project setup guide (install, file structure, compile, test, deploy) for your OS and package manager. |
+| `drosera_write_trap` | Generates a Solidity Trap contract + `drosera.toml` from plain English. Known patterns → complete contract. Custom ideas → rich scaffold for your AI to implement. |
+| `drosera_setup_guide` | Full step-by-step project setup (install, file structure, compile, test, deploy) for your OS and package manager. |
 | `drosera_explain_interface` | Explains the `ITrap` interface — `collect()`, `shouldRespond()`, rules, and a working example. |
 | `drosera_docs` | Query any topic from the official Drosera docs embedded locally. Works offline. |
 
 ### Trap Templates (`drosera_write_trap`)
 
-The trap writer detects your intent from plain English and picks the right template:
+**8 instant templates** — matched by keywords in your description:
 
 | Keywords | Template |
 |---|---|
@@ -49,7 +77,18 @@ The trap writer detects your intent from plain English and picks the right templ
 | `eth balance`, `ether` | ETH balance threshold |
 | `drop`, `crash`, `sudden`, `spike` | % drop across blocks |
 | `threshold`, `below`, `exceed` | Single value threshold |
-| anything else | Generic template with clear TODOs |
+| **anything else** | **Rich scaffold + 8 reference patterns for your AI to implement** |
+
+**8 reference patterns** included in every custom scaffold:
+
+1. Single value threshold
+2. Percentage drop across two blocks
+3. Address / ownership change
+4. Boolean state change (paused, frozen)
+5. Multi-field snapshot (price + liquidity + owner)
+6. ERC20 balance monitor
+7. ERC20 total supply change
+8. Event log monitoring (Transfer, Swap, etc.)
 
 ### Docs Topics (`drosera_docs`)
 
@@ -64,7 +103,7 @@ Pass `"list"` to see all topics, or ask about any of:
 ### Prerequisites
 
 - [Node.js](https://nodejs.org) v18+
-- [Cursor](https://cursor.sh), Claude Desktop, or any MCP-compatible client
+- [Cursor](https://cursor.sh), Claude Desktop, VS Code, or any MCP-compatible client
 
 ### 1. Clone and build
 
@@ -131,9 +170,37 @@ node dist/index.js
 }
 ```
 
-### 4. Restart your client and test
+### 4. Skip the setup — use the hosted version
 
-In Cursor chat (`Cmd+L`):
+Already deployed on Railway. Just paste this into your config and go:
+
+**Cursor** (`~/.cursor/mcp.json`):
+```json
+{
+  "mcpServers": {
+    "drosera": {
+      "type": "http",
+      "url": "https://drosera-mcp.up.railway.app/mcp"
+    }
+  }
+}
+```
+
+**Claude Desktop:**
+```json
+{
+  "mcpServers": {
+    "drosera": {
+      "type": "http",
+      "url": "https://drosera-mcp.up.railway.app/mcp"
+    }
+  }
+}
+```
+
+No Node.js, no cloning, no building required.
+
+### 5. Restart your client and test
 
 ```
 Use the drosera_docs tool — list all topics
@@ -149,11 +216,7 @@ Use drosera_setup_guide for Mac with npm
 
 ---
 
-## Remote Deployment (Railway)
-
-Deploy once, use from anywhere — share the URL with your team.
-
-### Deploy to Railway
+## Self-Hosting on Railway
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app)
 
@@ -170,25 +233,8 @@ railway up
 railway variables set TRANSPORT=http
 ```
 
-### Connect Cursor to remote server
-
-Once Railway gives you a URL, update `~/.cursor/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "drosera": {
-      "type": "http",
-      "url": "https://YOUR-APP.up.railway.app/mcp"
-    }
-  }
-}
-```
-
-### Verify deployment
-
+Verify it's live:
 ```bash
-# Health check
 curl https://YOUR-APP.up.railway.app/health
 # → {"status":"ok","server":"drosera-mcp-server"}
 ```
@@ -211,7 +257,7 @@ drosera-mcp-server/
 ├── src/
 │   ├── index.ts          # Entry point — stdio + HTTP transports
 │   ├── tools.ts          # MCP tool definitions
-│   ├── trap-writer.ts    # Template-based Solidity trap generator
+│   ├── trap-writer.ts    # Template engine + 8 reference patterns
 │   └── docs.ts           # Full Drosera docs embedded as structured data
 ├── dist/                 # Compiled output (after npm run build)
 ├── railway.json          # Railway deployment config
@@ -224,8 +270,13 @@ drosera-mcp-server/
 ## Example Prompts
 
 ```
-Write me a Drosera trap that triggers if a Uniswap V3 pool
-liquidity drops by more than 20% in one block
+Write me a Drosera trap that monitors a Chainlink oracle 
+for more than 5% price deviation in one block
+```
+
+```
+Write a trap that watches a Uniswap V3 pool for abnormal 
+liquidity removal
 ```
 
 ```
@@ -261,7 +312,8 @@ The Drosera docs are excellent but spread across many pages. When you're in the 
 
 This MCP server:
 - **Embeds the complete Drosera docs** so your AI never has to search the web
-- **Generates valid Trap contracts instantly** using tested templates
+- **Generates valid Trap contracts instantly** from 8 proven templates
+- **Provides rich scaffolds** with reference patterns so your AI can implement any custom trap idea
 - **Works fully offline** — no external API calls, no API keys required
 - **Stays accurate** — docs are baked in from the official source, not scraped
 
